@@ -1,0 +1,80 @@
+{
+  "common": {
+    "name": "smaho-c",
+    "version": "0.0.7",
+    "news": {
+      "0.0.1": {
+        "en": "initial release",
+        "de": "Erstveröffentlichung",
+        "ru": "Начальная версия",
+        "pt": "lançamento inicial",
+        "nl": "Eerste uitgave",
+        "fr": "Première version",
+        "it": "Versione iniziale",
+        "es": "Versión inicial",
+        "pl": "Pierwsze wydanie",
+        "zh-cn": "首次出版"
+      }
+    },
+    "titleLang": {
+      "en": "SmaHo-C",
+      "de": "SmaHo-C",
+      "ru": "SmaHo-C",
+      "pt": "SmaHo-C",
+      "nl": "SmaHo-C",
+      "fr": "SmaHo-C",
+      "it": "SmaHo-C",
+      "es": "SmaHo-C",
+      "pl": "SmaHo-C",
+      "zh-cn": "SmaHo-C"
+    },
+    "desc": {
+      "en": "Steuerung E-Installation",
+      "de": "Steuerung E-Installation",
+      "ru": "Электронная установка Steuerung",
+      "pt": "Steuerung E-Installation",
+      "nl": "Steuerung E-installatie",
+      "fr": "Steuerung E-Installation",
+      "it": "Steuerung E-Installazione",
+      "es": "Instalación electrónica Steuerung",
+      "pl": "E-instalacja sterowania",
+      "zh-cn": "电子安装"
+    },
+    "authors": [
+      "t5b6de <tberen@t5b6.de>"
+    ],
+    "keywords": [
+      "ioBroker",
+      "template",
+      "Smart Home",
+      "home automation"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "main": "build/main.js",
+    "icon": "smaho-c.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/t5b6de/ioBroker.smaho-c/master/admin/smaho-c.png",
+    "readme": "https://github.com/t5b6de/ioBroker.smaho-c/blob/master/README.md",
+    "loglevel": "info",
+    "mode": "daemon",
+    "type": "hardware",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "push",
+    "materialize": true,
+    "dependencies": [
+      {
+        "js-controller": ">=2.0.0"
+      }
+    ],
+    "installedFrom": "/opt/iobroker/adapters/iobroker.smaho-c"
+  },
+  "native": {
+    "serialport": "/dev/ttyS3",
+    "baudrate": 230400,
+    "smartmode": false
+  },
+  "objects": [],
+  "instanceObjects": []
+}
