@@ -32,7 +32,7 @@ class SmartMeterDataPacket extends PacketBase {
     }
 
     private parsePacket(): boolean {
-        this._TransmissionId = this._Packetizer.getByte(1); // 0 = cmd, 1 input, 2 = state
+        this._TransmissionId = this._Packetizer.getByte(1); // 0 = cmd, 1 input, 2 = state, ...
         this._ChunkIndex = this._Packetizer.getByte(2);
 
         this._ChunkSize = this._Packetizer.getByte(3);
@@ -44,6 +44,7 @@ class SmartMeterDataPacket extends PacketBase {
                 this._Data = Buffer.from(this._Packetizer.getBuffer(), 4, this._ChunkSize);
             }
         }
+
         // no further needed.
         return true;
     }

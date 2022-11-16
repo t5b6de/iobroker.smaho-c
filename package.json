@@ -21,7 +21,9 @@
   "dependencies": {
     "@iobroker/adapter-core": "^2.5.1",
     "@types/serialport": "^8.0.2",
-    "serialport": "^9.2.0"
+    "open-sml": "^1.0.4",
+    "serialport": "^9.2.0",
+    "smartmeter-obis": "^3.0.2"
   },
   "devDependencies": {
     "@iobroker/testing": "^2.4.4",

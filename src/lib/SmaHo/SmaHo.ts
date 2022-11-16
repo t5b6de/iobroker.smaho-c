@@ -32,7 +32,7 @@ import StateRequestPacket from "./Packets/StateRequestPacket";
 import StateResponsePacket from "./Packets/StateResponsePacket";
 import StatusPacket from "./Packets/StatusPacket";
 import SmaHoPacketizer from "./SmaHoPacketizer";
-import SmartMeterSocket from "./SmartMeterSocket";
+import SmartMeterInterface from "./SmartMeterInterface";
 
 class SmaHo {
     _Port: SerialPort;
@@ -54,13 +54,13 @@ class SmaHo {
 
     _Log: ioBroker.Logger;
 
-    _SmartMeter: SmartMeterSocket;
+    _SmartMeter: SmartMeterInterface;
 
     /**
      * Serialportname e.g. COM3 or /dev/ttyS0
      * @param {string} portName
      */
-    constructor(portName: string, baudRate: number, log: ioBroker.Logger) {
+    constructor(portName: string, baudRate: number, log: ioBroker.Logger, smlStoreFunc: CallableFunction) {
         const me = this;
 
         this._Port = new SerialPort(portName, { baudRate: baudRate });
@@ -76,6 +76,7 @@ class SmaHo {
         this._Ping = new PingPacket();
         this._InputChanged = null;
         this._PacketQueue = [];
+        this._SmartMeter = new SmartMeterInterface(smlStoreFunc);
 
         this.startIdlePing();
         this.startSender();
