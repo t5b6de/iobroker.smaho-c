@@ -614,17 +614,29 @@ class SmaHoAdapter {
             }
             const trg = state.val.toString().split(",");
 
-            if (trg.length == 2) {
+            if (trg.length == 2 || trg.length == 3) {
                 const inp = parseInt(trg[0]);
                 const state = parseInt(trg[1]);
+                let time = 0;
 
-                if (inp < 0 || inp > 255 || state < 0 || state > 1) {
+                if (trg.length == 3) {
+                    time = parseInt(trg[2]);
+                }
+
+                if (inp < 0 || inp > 255 || state < 0 || state > 1 || time < 0 || time > 5000) {
                     this._Adp.log.warn("not able to handle trigger, input or state out of range");
                 } else {
-                    this._Controller.TriggerInput(inp, state != 0);
+                    const me = this;
+                    me._Controller.TriggerInput(inp, state != 0);
+
+                    if (time > 0) {
+                        setTimeout(() => {
+                            me._Controller.TriggerInput(inp, state == 0);
+                        }, time);
+                    }
                 }
             } else {
-                this._Adp.log.warn("not able to handle trigger, invalid syntax. (0-255),(0-1)");
+                this._Adp.log.warn("not able to handle trigger, invalid syntax. (0-255),(0-1)[,(0-5000)]");
             }
             this._Adp.setStateChangedAsync("trigger", { val: "", ack: true });
             return;
