@@ -5,5 +5,9 @@ class SmlTlField {
         this.type = t;
         this.length = l;
     }
+
+    public toString(): string {
+        return "t/l: " + this.type + "/" + this.length;
+    }
 }
 export = SmlTlField;

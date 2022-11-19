@@ -109,11 +109,11 @@ class SmlBuffer {
         return result;
     }
 
-    public readUInt64(): bigint {
+    public readUInt64(): number {
         const result = this._Buffer.readBigUInt64BE(this._Offset);
         this._Offset += 8;
         this._LastValType = Constants.UINT64;
-        return result;
+        return Number(result);
 
         //var result = (this.buffer.readUInt32BE(this._Offset+4)<<8) & this._Buffer.readUIntBE(this._Offset);
         /*var result = this._Buffer.readDoubleBE(this._Offset);
@@ -131,11 +131,11 @@ class SmlBuffer {
        }*/
     }
 
-    public readInt64() {
+    public readInt64(): number {
         const result = this._Buffer.readBigInt64BE(this._Offset);
         this._Offset += 8;
         this._LastValType = Constants.INT64;
-        return result;
+        return Number(result);
 
         //var result = (this.buffer.readUInt32BE(this._Offset+4)<<8) & this._Buffer.readUIntBE(this._Offset);
         /*var result = this._Buffer.readDoubleBE(this._Offset);

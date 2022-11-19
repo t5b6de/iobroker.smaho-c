@@ -37,7 +37,7 @@ class SmartMeterDataPacket extends PacketBase {
 
         this._ChunkSize = this._Packetizer.getByte(3);
 
-        if (this._ChunkIndex == 0 && this._ChunkSize > 2) {
+        if (this._ChunkIndex == 0 && this._ChunkSize >= 2) {
             this._TrxLength = (this._Packetizer.getByte(4) << 8) | this._Packetizer.getByte(5);
         } else {
             if (this._ChunkIndex > 0 && this._ChunkSize > 1) {
@@ -63,6 +63,10 @@ class SmartMeterDataPacket extends PacketBase {
 
     public getData(): Buffer {
         return this._Data;
+    }
+
+    public getSize(): number {
+        return this._ChunkSize;
     }
 }
 

@@ -26,7 +26,7 @@ class SmlList {
         const tlField = buffer.readTLField();
 
         if (tlField.type != 0x07) {
-            throw new Error("Unknown TL-Field for SmlList!");
+            throw new Error("Unknown TL-Field for SmlList! " + tlField.type);
         }
 
         for (let i = 0; i < tlField.length; i++) {

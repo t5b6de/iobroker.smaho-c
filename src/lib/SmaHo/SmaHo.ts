@@ -76,7 +76,7 @@ class SmaHo {
         this._Ping = new PingPacket();
         this._InputChanged = null;
         this._PacketQueue = [];
-        this._SmartMeter = new SmartMeterInterface(smlStoreFunc);
+        this._SmartMeter = new SmartMeterInterface(smlStoreFunc, this._Log);
 
         this.startIdlePing();
         this.startSender();

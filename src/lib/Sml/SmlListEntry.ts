@@ -107,7 +107,7 @@ class SmlListEntry {
         const tlField = buffer.readTLField();
 
         if (tlField.type != 0x07 && tlField.length != 0x07) {
-            throw new Error("Unknown TL-Field for SmlListEntry!");
+            throw new Error("Unknown TL-Field for SmlListEntry!" + tlField.toString());
         }
 
         smlListEntry.setObjName(buffer.readOctetString());

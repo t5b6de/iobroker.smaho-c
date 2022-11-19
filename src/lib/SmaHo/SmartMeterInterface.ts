@@ -1,4 +1,4 @@
-import { ObisMeasurement } from "smartmeter-obis/lib/ObisMeasurement";
+import SmartmeterObis from "smartmeter-obis/index";
 import SmlBuffer from "../Sml/SmlBuffer";
 import SmlList from "../Sml/SmlList";
 import SmartMeterDataPacket from "./Packets/SmartMeterDataPacket";
@@ -14,6 +14,7 @@ class SmartMeterInterface {
     private _Buffer: Buffer;
     private _CurPos: number;
     private _StoreCb: CallableFunction;
+    private _Logger: ioBroker.Logger;
 
     private reset(): void {
         this._DataLen = 0;
@@ -23,45 +24,60 @@ class SmartMeterInterface {
         this._CurPos = 0;
     }
 
-    constructor(storeFunc: CallableFunction) {
+    constructor(storeFunc: CallableFunction, logger: ioBroker.Logger) {
         this.reset();
         this._StoreCb = storeFunc;
+        this._Logger = logger;
     }
 
     public addPacket(dp: SmartMeterDataPacket): void {
         if (dp.getChunkIndex() == 0) {
-            this._CurTransmission = dp.getTransmissionId();
             this._DataLen = dp.getTransmissionSize();
+            this._CurChunk = 0;
+            if (this._DataLen <= 0) {
+                return;
+            }
+
+            this._CurTransmission = dp.getTransmissionId();
             this._Buffer = Buffer.alloc(this._DataLen);
         } else {
             // Sanity Check:
-            if (this._CurTransmission != dp.getTransmissionId() || this._CurChunk != dp.getChunkIndex() - 1) {
+            if (
+                this._DataLen <= 0 ||
+                this._CurTransmission != dp.getTransmissionId() ||
+                this._CurChunk != dp.getChunkIndex() - 1
+            ) {
                 this.reset();
+                return;
             }
 
             if (this._DataLen > 0) {
                 const buf: Buffer = dp.getData();
-                buf.copy(this._Buffer, this._CurPos, 0, buf.length);
-                this._CurPos += buf.length;
-                this._CurChunk++;
-            }
 
-            if (this._CurPos >= this._DataLen) {
-                this._StoreCb(this.readList());
+                buf.copy(this._Buffer, this._CurPos, 4, dp.getSize() + 4);
+                this._CurPos += dp.getSize();
+                this._CurChunk++;
+
+                if (this._CurPos >= this._DataLen) {
+                    this._StoreCb(this.readList());
+                    this.reset();
+                }
             }
         }
     }
 
-    private readList(): Dictionary<ObisMeasurement> {
+    private readList(): Dictionary<SmartmeterObis.ObisMeasurement> {
         try {
             const buff = new SmlBuffer(this._Buffer);
+            this._Logger.debug(this._Buffer.toString("hex"));
             const list = SmlList.parse(buff);
 
-            const result: Dictionary<ObisMeasurement> = {};
+            const result: Dictionary<SmartmeterObis.ObisMeasurement> = {};
             for (let i = 0; i < list.getLength(); i++) {
                 const entry = list.getListEntryAt(i);
                 try {
-                    const obis = new ObisMeasurement(entry.getObjName());
+                    const obis = new SmartmeterObis.ObisMeasurement(entry.getObjName());
+
                     let value = entry.getValue();
                     const unit = entry.getUnit();
                     if (typeof value === "number" && entry.getScaler()) {
@@ -69,10 +85,14 @@ class SmartMeterInterface {
                     }
                     obis.addValue(value, unit);
                     result[obis.idToString()] = obis;
-                } catch (err) {}
+                } catch (err) {
+                    this._Logger.error("Could not parse Value: " + err.toString());
+                }
             }
             return result;
-        } catch (err) {}
+        } catch (err) {
+            this._Logger.error("Could not decode List: " + err.toString());
+        }
 
         return undefined;
     }

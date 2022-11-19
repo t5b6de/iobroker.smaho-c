@@ -25,14 +25,17 @@ class SmaHoAdapter {
         this._Adp.log.info(
             "Using Serialport " + this._Adp.config.serialport + " with " + this._Adp.config.baudrate + "bd",
         );
+
+        const me = this;
+
         this._Adp.log.info("Creating Instance of SmaHo...");
-        this._Controller = new SmaHo(
-            this._Adp.config.serialport,
-            this._Adp.config.baudrate,
-            this._Adp.log,
-            this.onSmlArrived,
-        );
+        this._Controller = new SmaHo(this._Adp.config.serialport, this._Adp.config.baudrate, this._Adp.log, function (
+            vals: Dictionary<ObisMeasurement>,
+        ) {
+            me.onSmlArrived(vals);
+        });
         this._Conf = new SmaHoFbConfig(this._Controller, this);
+        this._SmValues = {};
     }
 
     public getAdapterInstance(): utils.AdapterInstance {
@@ -388,145 +391,173 @@ class SmaHoAdapter {
     }
 
     public async onSmlArrived(obisResult: Dictionary<ObisMeasurement>): Promise<void> {
+        if (obisResult == null || obisResult == undefined) {
+            this._Adp.log.warn("Could not set Values: Empty");
+            return;
+        }
+
+        await this._Adp.setObjectNotExistsAsync("meter", {
+            type: "channel",
+            common: {
+                name: "Smart Meter values",
+                role: "info",
+            },
+            native: {},
+        });
+
         const obisLang: ObisLanguage = "de";
         let updateCount = 0;
-        for (const obisId in obisResult) {
-            if (!obisResult.hasOwnProperty(obisId)) continue;
+        try {
+            for (const obisId in obisResult) {
+                if (!obisResult.hasOwnProperty(obisId)) continue;
 
-            this._Adp.log.debug(
-                obisResult[obisId].idToString() +
-                    ": " +
-                    SmartmeterObis.ObisNames.resolveObisName(
+                this._Adp.log.debug(
+                    obisResult[obisId].idToString() +
+                        ": " +
+                        SmartmeterObis.ObisNames.resolveObisName(
+                            obisResult[obisId],
+                            obisLang /*this._Adp.config.obisNameLanguage*/,
+                        ).obisName +
+                        " = " +
+                        obisResult[obisId].valueToString(),
+                );
+                let i;
+                // todo: meter durchnummerieren, problematisch bei mehreren metern.
+                const rawChannelId = obisResult[obisId].idToString();
+                let ioChannelId = rawChannelId.replace(/[\]\[*,;'"`<>\\?]/g, "__");
+                ioChannelId = "meter." + ioChannelId.replace(/\./g, "_");
+                if (!this._SmValues[obisId]) {
+                    const ioChannelName = SmartmeterObis.ObisNames.resolveObisName(
                         obisResult[obisId],
-                        obisLang /*this._Adp.config.obisNameLanguage*/,
-                    ).obisName +
-                    " = " +
-                    obisResult[obisId].valueToString(),
-            );
-            let i;
-            let ioChannelId = obisResult[obisId].idToString().replace(/[\]\[*,;'"`<>\\?]/g, "__");
-            ioChannelId = ioChannelId.replace(/\./g, "_");
-            if (!this._SmValues[obisId]) {
-                const ioChannelName = SmartmeterObis.ObisNames.resolveObisName(obisResult[obisId], obisLang).obisName;
-                this._Adp.log.debug("Create Channel " + ioChannelId + " with name " + ioChannelName);
-                try {
-                    await this._Adp.setObjectNotExistsAsync(ioChannelId, {
-                        type: "channel",
-                        common: {
-                            name: ioChannelName,
-                        },
-                        native: {},
-                    });
-                } catch (err) {
-                    this._Adp.log.error("Error creating Channel: " + err);
-                }
-
-                if (obisResult[obisId].getRawValue() !== undefined) {
-                    this._Adp.log.debug("Create State " + ioChannelId + ".rawvalue");
+                        obisLang,
+                    ).obisName;
+                    this._Adp.log.debug("Create Channel " + ioChannelId + " with name " + ioChannelName);
                     try {
-                        await this._Adp.setObjectNotExistsAsync(ioChannelId + ".rawvalue", {
-                            type: "state",
+                        await this._Adp.setObjectNotExistsAsync(ioChannelId, {
+                            type: "channel",
                             common: {
-                                name: ioChannelId + ".rawvalue",
-                                type: "string",
-                                read: true,
-                                role: "value",
-                                write: false,
+                                name: ioChannelName,
                             },
-                            native: {
-                                id: ioChannelId + ".rawvalue",
-                            },
+                            native: {},
                         });
                     } catch (err) {
-                        this._Adp.log.error("Error creating State: " + err);
+                        this._Adp.log.error("Error creating Channel: " + err);
                     }
-                }
 
-                this._Adp.log.debug("Create State " + ioChannelId + ".value");
-                try {
-                    await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value", {
-                        type: "state",
-                        common: {
-                            name: ioChannelId + ".value",
-                            type: this.getStateTypeByType(typeof obisResult[obisId].getValue(0).value),
-                            read: true,
-                            unit: obisResult[obisId].getValue(0).unit,
-                            role: "value",
-                            write: false,
-                        },
-                        native: {
-                            id: ioChannelId + ".value",
-                        },
-                    });
-                } catch (err) {
-                    this._Adp.log.error("Error creating State: " + err);
-                }
-
-                if (obisResult[obisId].getValueLength() > 1) {
-                    for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
-                        this._Adp.log.debug("Create State " + ioChannelId + ".value" + (i + 1));
+                    if (obisResult[obisId].getRawValue() !== undefined) {
+                        this._Adp.log.debug("Create State " + ioChannelId + ".rawvalue");
                         try {
-                            await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value" + (i + 1), {
+                            await this._Adp.setObjectNotExistsAsync(ioChannelId + ".rawvalue", {
                                 type: "state",
                                 common: {
-                                    name: ioChannelId + ".value" + (i + 1),
-                                    type: this.getStateTypeByType(typeof obisResult[obisId].getValue(i).value),
+                                    name: rawChannelId, //ioChannelId + ".rawvalue",
+                                    type: "string",
                                     read: true,
-                                    unit: obisResult[obisId].getValue(i).unit,
                                     role: "value",
                                     write: false,
                                 },
                                 native: {
-                                    id: ioChannelId + ".value" + (i + 1),
+                                    id: ioChannelId + ".rawvalue",
                                 },
                             });
                         } catch (err) {
                             this._Adp.log.error("Error creating State: " + err);
                         }
                     }
-                }
-            }
-            if (
-                !this._SmValues[obisId] ||
-                this._SmValues[obisId].valueToString() !== obisResult[obisId].valueToString()
-            ) {
-                if (obisResult[obisId].getRawValue() !== undefined) {
-                    this._Adp.log.debug("Set State " + ioChannelId + ".rawvalue = " + obisResult[obisId].getRawValue());
-                    await this._Adp.setStateAsync(ioChannelId + ".rawvalue", {
-                        ack: true,
-                        val: obisResult[obisId].getRawValue(),
-                    });
-                }
 
-                this._Adp.log.debug("Set State " + ioChannelId + ".value = " + obisResult[obisId].getValue(0).value);
-                await this._Adp.setStateAsync(ioChannelId + ".value", {
-                    ack: true,
-                    val: obisResult[obisId].getValue(0).value,
-                });
-
-                if (obisResult[obisId].getValueLength() > 1) {
-                    for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
-                        this._Adp.log.debug(
-                            "Set State " +
-                                ioChannelId +
-                                ".value" +
-                                (i + 1) +
-                                " = " +
-                                obisResult[obisId].getValue(i).value,
-                        );
-                        await this._Adp.setStateAsync(ioChannelId + ".value" + (i + 1), {
-                            ack: true,
-                            val: obisResult[obisId].getValue(i).value,
+                    this._Adp.log.debug("Create State " + ioChannelId + ".value");
+                    try {
+                        await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value", {
+                            type: "state",
+                            common: {
+                                name: rawChannelId, //ioChannelId + ".value",
+                                type: this.getStateTypeByType(typeof obisResult[obisId].getValue(0).value),
+                                read: true,
+                                unit: obisResult[obisId].getValue(0).unit,
+                                role: "value",
+                                write: false,
+                            },
+                            native: {
+                                id: ioChannelId + ".value",
+                            },
                         });
+                    } catch (err) {
+                        this._Adp.log.error("Error creating State: " + err);
+                    }
+
+                    if (obisResult[obisId].getValueLength() > 1) {
+                        for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
+                            this._Adp.log.debug("Create State " + ioChannelId + ".value" + (i + 1));
+                            try {
+                                await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value" + (i + 1), {
+                                    type: "state",
+                                    common: {
+                                        name: rawChannelId + " (" + (i + 1) + ")", //ioChannelId + ".value" + (i + 1),
+                                        type: this.getStateTypeByType(typeof obisResult[obisId].getValue(i).value),
+                                        read: true,
+                                        unit: obisResult[obisId].getValue(i).unit,
+                                        role: "value",
+                                        write: false,
+                                    },
+                                    native: {
+                                        id: ioChannelId + ".value" + (i + 1),
+                                    },
+                                });
+                            } catch (err) {
+                                this._Adp.log.error("Error creating State: " + err);
+                            }
+                        }
                     }
                 }
-                this._SmValues[obisId] = obisResult[obisId];
-                updateCount++;
-            } else {
-                this._Adp.log.debug("Data for " + ioChannelId + " unchanged");
+                if (
+                    !this._SmValues[obisId] ||
+                    this._SmValues[obisId].valueToString() !== obisResult[obisId].valueToString()
+                ) {
+                    if (obisResult[obisId].getRawValue() !== undefined) {
+                        this._Adp.log.debug(
+                            "Set State " + ioChannelId + ".rawvalue = " + obisResult[obisId].getRawValue(),
+                        );
+                        await this._Adp.setStateAsync(ioChannelId + ".rawvalue", {
+                            ack: true,
+                            val: obisResult[obisId].getRawValue(),
+                        });
+                    }
+
+                    this._Adp.log.debug(
+                        "Set State " + ioChannelId + ".value = " + obisResult[obisId].getValue(0).value,
+                    );
+                    await this._Adp.setStateAsync(ioChannelId + ".value", {
+                        ack: true,
+                        val: obisResult[obisId].getValue(0).value,
+                    });
+
+                    if (obisResult[obisId].getValueLength() > 1) {
+                        for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
+                            this._Adp.log.debug(
+                                "Set State " +
+                                    ioChannelId +
+                                    ".value" +
+                                    (i + 1) +
+                                    " = " +
+                                    obisResult[obisId].getValue(i).value,
+                            );
+                            await this._Adp.setStateAsync(ioChannelId + ".value" + (i + 1), {
+                                ack: true,
+                                val: obisResult[obisId].getValue(i).value,
+                            });
+                        }
+                    }
+                    this._SmValues[obisId] = obisResult[obisId];
+                    updateCount++;
+                } else {
+                    this._Adp.log.debug("Data for " + ioChannelId + " unchanged");
+                }
             }
+        } catch (err) {
+            this._Adp.log.error("Could not set Values: " + err.toString());
         }
-        this._Adp.log.info("Received " + Object.keys(obisResult).length + " values, " + updateCount + " updated");
+
+        this._Adp.log.debug("Received " + Object.keys(obisResult).length + " values, " + updateCount + " updated");
     }
 
     public onStateChange(id: string, state: ioBroker.State): void {
