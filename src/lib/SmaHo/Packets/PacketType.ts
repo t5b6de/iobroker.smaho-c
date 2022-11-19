@@ -14,6 +14,8 @@ enum PacketType {
 
     SetSmartMode = 0x0b,
 
+    TriggerInput = 0x0d,
+
     // Config:
     // Nameings:
     ConfigNameRead = 0x06,

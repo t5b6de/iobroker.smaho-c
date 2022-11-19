@@ -22,6 +22,7 @@ import MotionSensorChangedPacket from "./Packets/Io/MotionSensorChangedPacket";
 import MotionSensorModeSetPacket from "./Packets/Io/MotionSensorModeSetPacket";
 import OutputChangedPacket from "./Packets/Io/OutputChangedPacket";
 import SetOutputPacket from "./Packets/Io/SetOutputPacket";
+import TriggerInputPacket from "./Packets/Io/TriggerInputPacket";
 import MotionDetectorMode from "./Packets/MotionDetectorMode";
 import PacketBase from "./Packets/PacketBase";
 import PacketType from "./Packets/PacketType";
@@ -207,17 +208,6 @@ class SmaHo {
 
             case PacketType.ConfigInputResponse:
                 p = new ConfigInputResponsePacket(this._Packetizer, (a: ConfigInputResponsePacket) => {
-                    // this._Log.debug(
-                    //     "Input Config Received: idx: " +
-                    //         a.getIndex() +
-                    //         " inType: " +
-                    //         a.getInputType() +
-                    //         " isMds: " +
-                    //         a.isMotionDetectonSensor() +
-                    //         " oGroup: " +
-                    //         a.getOutputGroup(),
-                    // );
-
                     if (me._CfgHandler != null) me._CfgHandler(a, ConfType.Input);
                 });
                 break;
@@ -325,6 +315,10 @@ class SmaHo {
 
     public cfgSetInput(index: number, it: InputType, og: number): void {
         this.sendPacket(new ConfigInputWritePacket(index, it, og));
+    }
+
+    public TriggerInput(index: number, state: boolean): void {
+        this.sendPacket(new TriggerInputPacket(index, state));
     }
 
     public cfgSetOutGroup(index: number, outs: Array<number>, onTime: number, offTime: number): void {

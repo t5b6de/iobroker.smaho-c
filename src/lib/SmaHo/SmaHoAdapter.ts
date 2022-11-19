@@ -80,6 +80,7 @@ class SmaHoAdapter {
         this._Adp.subscribeStates("in.*");
         this._Adp.subscribeStates("mds.*");
         this._Adp.subscribeStates("conf.*");
+        this._Adp.subscribeStates("trigger");
     }
 
     private setSmartMode(): void {
@@ -157,6 +158,18 @@ class SmaHoAdapter {
                 role: "info",
                 read: true,
                 write: false,
+            },
+            native: {},
+        });
+
+        await this._Adp.setObjectNotExistsAsync("trigger", {
+            type: "state",
+            common: {
+                name: "triggerinput",
+                type: "string",
+                role: "string",
+                read: false,
+                write: true,
             },
             native: {},
         });
@@ -593,6 +606,27 @@ class SmaHoAdapter {
                 return;
             }
             this._Conf.onStateChange(id, state);
+            return;
+        } else if (parts[2] == "trigger") {
+            if (state.ack) {
+                // already acknowledged.
+                return;
+            }
+            const trg = state.val.toString().split(",");
+
+            if (trg.length == 2) {
+                const inp = parseInt(trg[0]);
+                const state = parseInt(trg[1]);
+
+                if (inp < 0 || inp > 255 || state < 0 || state > 1) {
+                    this._Adp.log.warn("not able to handle trigger, input or state out of range");
+                } else {
+                    this._Controller.TriggerInput(inp, state != 0);
+                }
+            } else {
+                this._Adp.log.warn("not able to handle trigger, invalid syntax. (0-255),(0-1)");
+            }
+            this._Adp.setStateChangedAsync("trigger", { val: "", ack: true });
             return;
         }
 
