@@ -424,6 +424,12 @@ class SmaHoFbConfig {
         }
     }
 
+    public getName(i: number, ct: ConfType): string {
+        const cfgId = this.getConf(ct, i);
+
+        return cfgId.Name;
+    }
+
     public onStateChange(id: string, state: ioBroker.State | null | undefined): void {
         this._Ioa.log.info("CONF id: " + id + " changed");
         if (state) {

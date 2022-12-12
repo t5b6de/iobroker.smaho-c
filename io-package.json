@@ -1,47 +1,53 @@
 {
     "common": {
         "name": "smaho-c",
-        "version": "1.1.0",
+        "version": "1.2.3",
         "news": {
             "0.0.1": {
-                "en": "initial release",
-                "de": "Erstveröffentlichung",
-                "ru": "Начальная версия",
-                "pt": "lançamento inicial",
-                "nl": "Eerste uitgave",
-                "fr": "Première version",
-                "it": "Versione iniziale",
-                "es": "Versión inicial",
-                "pl": "Pierwsze wydanie",
-                "zh-cn": "首次出版"
+                "en": "initial test release",
+                "de": "Test Erstveröffentlichung"
+            },
+
+            "1.0.0": {
+                "en": "Smart meter implemented",
+                "de": "Smart Meter implementiert"
+            },
+
+            "1.1.0": {
+                "en": "ability to trigger inputs implemented",
+                "de": "Möglichkeit eingänge zu triggern implementiert"
+            },
+
+            "1.2.0": {
+                "en": "impemented names to log",
+                "de": "Loggen von Portnamen implementiert"
+            },
+
+            "1.2.1": {
+                "en": "log bugfixes",
+                "de": "Bugfixing beim logging"
+            },
+
+            "1.2.2": {
+                "en": "log bugfixes",
+                "de": "Bugfixing beim logging"
+            },
+
+            "1.2.3": {
+                "en": "log changed output",
+                "de": "Logtexte angepasst"
             }
         },
         "titleLang": {
             "en": "SmaHo-C",
-            "de": "SmaHo-C",
-            "ru": "SmaHo-C",
-            "pt": "SmaHo-C",
-            "nl": "SmaHo-C",
-            "fr": "SmaHo-C",
-            "it": "SmaHo-C",
-            "es": "SmaHo-C",
-            "pl": "SmaHo-C",
-            "zh-cn": "SmaHo-C"
+            "de": "SmaHo-C"
         },
         "desc": {
             "en": "Steuerung E-Installation",
-            "de": "Steuerung E-Installation",
-            "ru": "Электронная установка Steuerung",
-            "pt": "Steuerung E-Installation",
-            "nl": "Steuerung E-installatie",
-            "fr": "Steuerung E-Installation",
-            "it": "Steuerung E-Installazione",
-            "es": "Instalación electrónica Steuerung",
-            "pl": "E-instalacja sterowania",
-            "zh-cn": "电子安装"
+            "de": "Steuerung E-Installation"
         },
         "authors": ["t5b6de <tberen@t5b6.de>"],
-        "keywords": ["ioBroker", "template", "Smart Home", "home automation"],
+        "keywords": ["ioBroker adapters", "Smart Home", "home automation"],
         "license": "MIT",
         "platform": "Javascript/Node.js",
         "main": "build/main.js",

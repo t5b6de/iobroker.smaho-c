@@ -573,76 +573,133 @@ class SmaHoAdapter {
         this._Adp.log.debug("Received " + Object.keys(obisResult).length + " values, " + updateCount + " updated");
     }
 
+    private logPortChange(
+        p: number,
+        ct: ConfType,
+        val: ioBroker.StateValue,
+        triggered: boolean,
+        handled: boolean,
+    ): void {
+        let str; // = triggered ? "Trigger: " : "Change: ";
+        let pName = this._Conf.getName(p, ct);
+
+        if (handled) {
+            if (triggered) {
+                str = "ignore: "; // should not happen, this will not be covered by this module.
+            } else {
+                str = "notify: ";
+            }
+        } else {
+            if (triggered) {
+                str = "trigger: ";
+            } else {
+                str = "set: ";
+            }
+        }
+
+        const mdsModeStr = ["auto", "output on", "output off"];
+
+        if (pName != "" && pName != undefined) {
+            pName = " (" + pName + ")";
+        }
+
+        let vStr;
+        const pStr = p.toString();
+        switch (ct) {
+            case ConfType.Input:
+                vStr = (val as boolean) ? "closed" : "open";
+                //pStr = pStr.padStart(3, "0");
+                str += `I.${pStr}${pName}: ${vStr}`;
+                break;
+            case ConfType.Output:
+                vStr = (val as boolean) ? "on" : "off";
+                //pStr = pStr.padStart(3, "0");
+                str += `O.${pStr}${pName}: ${vStr}`;
+                break;
+            case ConfType.MotionSensor:
+                vStr = mdsModeStr[val as number];
+                //pStr = pStr.padStart(2, "0");
+                str += `M.${pStr}${pName}: ${vStr}`;
+                break;
+        }
+
+        this._Adp.log.info(str);
+    }
+
     public onStateChange(id: string, state: ioBroker.State): void {
         const parts = id.split(".");
         // (4) ["smaho-c", "0", "out", "p_000"]
+
+        let handled = state.ack;
 
         if (parts.length == 4) {
             const dir = parts[2];
             const p = parts[3];
             const num = this.getPortNum(p);
 
-            this._Adp.log.info(`Change: ${dir}, ${p}, ${num}, ${state.val}`);
-            if (state.ack) {
-                // already acknowledged.
-                return;
-            }
             if (!isNaN(num)) {
+                let ct;
                 switch (dir) {
                     case "in":
                         // TODO: simulate button press
-                        return;
+                        // DONE: See Input trigger below
+                        ct = ConfType.Input;
+                        break;
                     case "out":
-                        this._Controller.setOutput(num, state.val as boolean);
-                        return;
+                        ct = ConfType.Output;
+                        if (!handled) this._Controller.setOutput(num, state.val as boolean);
+                        handled = true;
+                        break;
                     case "mds":
-                        this._Controller.setMdsMode(num, state.val as MotionDetectorMode);
-                        return;
+                        ct = ConfType.MotionSensor;
+                        if (!handled) this._Controller.setMdsMode(num, state.val as MotionDetectorMode);
+                        handled = true;
+                        break;
                 }
+
+                this.logPortChange(num, ct, state.val, false, state.ack);
             }
         } else if (parts[2] == "conf") {
-            if (state.ack) {
-                // already acknowledged.
-                return;
-            }
-            this._Conf.onStateChange(id, state);
-            return;
+            if (!state.ack) this._Conf.onStateChange(id, state);
+            handled = true;
         } else if (parts[2] == "trigger") {
-            if (state.ack) {
-                // already acknowledged.
-                return;
-            }
-            const trg = state.val.toString().split(",");
+            if (!handled) {
+                const trg = state.val.toString().split(",");
 
-            if (trg.length == 2 || trg.length == 3) {
-                const inp = parseInt(trg[0]);
-                const state = parseInt(trg[1]);
-                let time = 0;
+                if (trg.length == 2 || trg.length == 3) {
+                    const inp = parseInt(trg[0]);
+                    const stateVal = parseInt(trg[1]);
+                    let time = 0;
 
-                if (trg.length == 3) {
-                    time = parseInt(trg[2]);
-                }
-
-                if (inp < 0 || inp > 255 || state < 0 || state > 1 || time < 0 || time > 5000) {
-                    this._Adp.log.warn("not able to handle trigger, input or state out of range");
-                } else {
-                    const me = this;
-                    me._Controller.TriggerInput(inp, state != 0);
-
-                    if (time > 0) {
-                        setTimeout(() => {
-                            me._Controller.TriggerInput(inp, state == 0);
-                        }, time);
+                    if (trg.length == 3) {
+                        time = parseInt(trg[2]);
                     }
+
+                    if (inp < 0 || inp > 255 || stateVal < 0 || stateVal > 1 || time < 0 || time > 5000) {
+                        this._Adp.log.warn("not able to handle trigger, input or state out of range");
+                    } else {
+                        const me = this;
+                        let st = stateVal != 0;
+                        me._Controller.TriggerInput(inp, st);
+                        this.logPortChange(inp, ConfType.Input, st, true, state.ack);
+                        handled = true;
+
+                        if (time > 0) {
+                            setTimeout(() => {
+                                st = stateVal == 0;
+                                me._Controller.TriggerInput(inp, st);
+                                this.logPortChange(inp, ConfType.Input, st, true, state.ack);
+                            }, time);
+                        }
+                    }
+                } else {
+                    this._Adp.log.warn("not able to handle trigger, invalid syntax. (0-255),(0-1)[,(0-5000)]");
                 }
-            } else {
-                this._Adp.log.warn("not able to handle trigger, invalid syntax. (0-255),(0-1)[,(0-5000)]");
+                this._Adp.setStateChangedAsync("trigger", { val: "", ack: true });
             }
-            this._Adp.setStateChangedAsync("trigger", { val: "", ack: true });
-            return;
         }
 
-        this._Adp.log.warn(`not able to handle state ${id}`);
+        if (!handled) this._Adp.log.warn(`not able to handle state ${id}`);
     }
 
     public onUnload(): void {
