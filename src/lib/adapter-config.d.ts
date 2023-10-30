@@ -7,6 +7,7 @@ declare global {
             serialport: string;
             baudrate: number;
             smartmode: boolean;
+            hideNonAvailIo: boolean;
         }
     }
 }

@@ -19,12 +19,20 @@ class SmaHoAdapter {
     private _Conf: SmaHoFbConfig;
     private _SmValues: Dictionary<ObisMeasurement>;
 
+    // TODO: if more device types are added with status, move this to separare class.
+    private _ExpAvail: number[];
+    private _ExpFailed: number[];
+
     constructor(adapter: utils.AdapterInstance) {
         this._Adp = adapter;
 
-        this._Adp.log.info(
-            "Using Serialport " + this._Adp.config.serialport + " with " + this._Adp.config.baudrate + "bd",
-        );
+        if (this._Adp.config.serialport.startsWith("tcp://")) {
+            this._Adp.log.info("Using Network Adapter " + this._Adp.config.serialport);
+        } else {
+            this._Adp.log.info(
+                "Using Serialport " + this._Adp.config.serialport + " with " + this._Adp.config.baudrate + "bd",
+            );
+        }
 
         const me = this;
 
@@ -36,6 +44,15 @@ class SmaHoAdapter {
         });
         this._Conf = new SmaHoFbConfig(this._Controller, this);
         this._SmValues = {};
+
+        this._ExpAvail = [];
+        this._ExpFailed = [];
+
+        // Add vals for expander states, states are flag based, max 32 Expanders = 4 bytes.
+        for (let i = 0; i < 4; i++) {
+            this._ExpAvail[i] = 0;
+            this._ExpFailed[i] = 0;
+        }
     }
 
     public getAdapterInstance(): utils.AdapterInstance {
@@ -88,19 +105,40 @@ class SmaHoAdapter {
         this._Controller.SetSmartMode(this._Adp.config.smartmode);
     }
 
+    private async setHwStatus(): Promise<void> {
+        this._Adp.setStateChangedAsync("hw_status", {
+            val: JSON.stringify({
+                avail: this._ExpAvail,
+                failed: this._ExpFailed,
+            }),
+            ack: true,
+        });
+    }
+
     private async initiatePorts(p: StateResponsePacket): Promise<void> {
         const from = p.getPortRange();
         const to = from + 7;
-        await this.addPortObjects(from, to, !p.isAvailable()); // TODO: request input/output Names if not exist.
+        await this.addPortObjects(from, to, !p.isAvailable());
 
-        this._Adp.setStateChangedAsync(this.getStatusId(p.getExpanderIndex(), "avail"), {
-            val: p.isAvailable() === true,
-            ack: true,
-        });
-        this._Adp.setStateChangedAsync(this.getStatusId(p.getExpanderIndex(), "failed"), {
-            val: p.isFailed() === true,
-            ack: true,
-        });
+        let expId = p.getExpanderIndex();
+        let expIdM = expId & 0x07;
+
+        expId = expId >> 3;
+        expIdM = 1 << expIdM;
+
+        if (p.isAvailable() === true) {
+            this._ExpAvail[expId] |= expIdM;
+        } else {
+            this._ExpAvail[expId] &= ~expIdM;
+        }
+
+        if (p.isFailed() === true) {
+            this._ExpFailed[expId] |= expIdM;
+        } else {
+            this._ExpFailed[expId] &= ~expIdM;
+        }
+
+        this.setHwStatus();
 
         if (p.isAvailable()) {
             const outStates = p.getOutStates();
@@ -141,20 +179,23 @@ class SmaHoAdapter {
             native: {},
         });
 
-        await this._Adp.setObjectNotExistsAsync(this.getStatusId(-1, null), {
-            type: "channel",
-            common: {
-                name: "controller information",
-                role: "",
-            },
-            native: {},
-        });
-
-        await this._Adp.setObjectNotExistsAsync(this.getStatusId(-1, "version"), {
+        await this._Adp.setObjectNotExistsAsync("hw_version", {
             type: "state",
             common: {
                 name: "Version string",
                 type: "string",
+                role: "info",
+                read: true,
+                write: false,
+            },
+            native: {},
+        });
+
+        await this._Adp.setObjectNotExistsAsync("hw_status", {
+            type: "state",
+            common: {
+                name: "Hardware Statusdata",
+                type: "json",
                 role: "info",
                 read: true,
                 write: false,
@@ -176,11 +217,17 @@ class SmaHoAdapter {
     }
 
     private async addPortObjects(from: number, to: number, del: boolean): Promise<void> {
+        // if there are e.g. 4 modules there are only 4x8 ports.
+        // the other ports can be used to trigger something, most usefule for inputs
+        // so we allow to configure to use all ports, instead of only
+        // the physical available:
+        const useAllPorts = !this._Adp.config.hideNonAvailIo;
+
         for (let i = from; i <= to; i++) {
             const inId = this.getIoId(i, ConfType.Input);
             const outId = this.getIoId(i, ConfType.Output);
 
-            if (del) {
+            if (del && !useAllPorts) {
                 let obj = await this._Adp.getObjectAsync(inId);
 
                 if (obj != null) {
@@ -310,63 +357,12 @@ class SmaHoAdapter {
         }
     }
 
-    private getStatusId(expander: number, prop: string): string {
-        let str = "status";
-
-        if (expander >= 0) {
-            const num = expander.toString().padStart(2, "0");
-            str += ".exp_" + num;
-            if (prop != null) {
-                str += "." + prop;
-            }
-        } else if (prop != null) {
-            str += "." + prop;
-        }
-
-        return str;
-    }
-
     private getPortNum(portId: string): number {
         return parseInt(portId.substr(2));
     }
 
     private async updateControllerStatus(p: InfoResponsePacket): Promise<void> {
-        this._Adp.setStateChangedAsync(this.getStatusId(-1, "version"), { val: p.getVersionString(), ack: true });
-
-        for (let i = 0; i < 32; i++) {
-            await this._Adp.setObjectNotExistsAsync(this.getStatusId(i, null), {
-                type: "channel",
-                common: {
-                    name: "GPIO Expander " + i + " status",
-                    role: "info",
-                },
-                native: {},
-            });
-
-            await this._Adp.setObjectNotExistsAsync(this.getStatusId(i, "avail"), {
-                type: "state",
-                common: {
-                    name: "GPIO Expander " + i + " available",
-                    role: "info",
-                    type: "boolean",
-                    read: true,
-                    write: false,
-                },
-                native: {},
-            });
-
-            await this._Adp.setObjectNotExistsAsync(this.getStatusId(i, "failed"), {
-                type: "state",
-                common: {
-                    name: "GPIO Expander " + i + " failed",
-                    role: "info",
-                    type: "boolean",
-                    read: true,
-                    write: false,
-                },
-                native: {},
-            });
-        }
+        this._Adp.setStateChangedAsync("hw_version", { val: p.getVersionString(), ack: true });
 
         for (let i = 0; i < 16; i++) {
             await this._Adp.setObjectNotExistsAsync(this.getIoId(i, ConfType.MotionSensor), {

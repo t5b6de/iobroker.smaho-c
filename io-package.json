@@ -1,7 +1,7 @@
 {
     "common": {
         "name": "smaho-c",
-        "version": "1.2.3",
+        "version": "1.4.1",
         "news": {
             "0.0.1": {
                 "en": "initial test release",
@@ -36,6 +36,36 @@
             "1.2.3": {
                 "en": "log changed output",
                 "de": "Logtexte angepasst"
+            },
+
+            "1.3.0": {
+                "en": "added tcp-socket support",
+                "de": "tcp socket support angefügt."
+            },
+
+            "1.3.1": {
+                "en": "Log output change, when using network connection instead of serial uart.",
+                "de": "Ausgabe beim Start korrigiert, wenn Netzwerkverbindung genutzt wird."
+            },
+
+            "1.3.2": {
+                "en": "Bugfixes.",
+                "de": "Bugfixes."
+            },
+
+            "1.3.3": {
+                "en": "Removed oversized status tree from object tree, replaced by single state with some arrays",
+                "de": "Übergroßen Statusbau vom object tree entfernt, ersetzt durch einfachen State mit Arrays"
+            },
+
+            "1.4.0": {
+                "en": "Allowing use of not available IO Ports (all 256 Ports)",
+                "de": "Erlaube die Nutzung aller 256 möglichen Ports, auch wenn die Erweiterungsmodule nicht vorhanden sind."
+            },
+
+            "1.4.1": {
+                "en": "Bugfixes.",
+                "de": "Bugfixes."
             }
         },
         "titleLang": {
@@ -72,7 +102,8 @@
     "native": {
         "serialport": "/dev/ttyS3",
         "baudrate": 230400,
-        "smartmode": false
+        "smartmode": false,
+        "hideNonAvailIo": true
     },
     "objects": [],
     "instanceObjects": []

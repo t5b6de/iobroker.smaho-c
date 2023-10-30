@@ -1,5 +1,6 @@
 //const SerialPort = require("serialport");
 import SerialPort from "serialport";
+import ConfType from "./Packets/Config/ConfType";
 import ConfigInputReadPacket from "./Packets/Config/ConfigInputReadPacket";
 import ConfigInputResponsePacket from "./Packets/Config/ConfigInputResponsePacket";
 import ConfigInputWritePacket from "./Packets/Config/ConfigInputWritePacket";
@@ -12,7 +13,6 @@ import ConfigNameWritePacket from "./Packets/Config/ConfigNameWritePacket";
 import ConfigOutputReadPacket from "./Packets/Config/ConfigOutputReadPacket";
 import ConfigOutputResponsePacket from "./Packets/Config/ConfigOutputResponsePacket";
 import ConfigOutputWritePacket from "./Packets/Config/ConfigOutputWritePacket";
-import ConfType from "./Packets/Config/ConfType";
 import InputType from "./Packets/Config/InputType";
 import NameType from "./Packets/Config/NameType";
 import InfoRequestPacket from "./Packets/InfoRequestPacket";
@@ -35,8 +35,16 @@ import StatusPacket from "./Packets/StatusPacket";
 import SmaHoPacketizer from "./SmaHoPacketizer";
 import SmartMeterInterface from "./SmartMeterInterface";
 
+import * as net from "net";
+
 class SmaHo {
     _Port: SerialPort;
+
+    // Alternativ Netzwerk:
+    _Sckt: net.Socket;
+    _NetHost: string;
+    _NetPort: number;
+
     _Packetizer: SmaHoPacketizer;
 
     _Ping: PingPacket;
@@ -64,11 +72,6 @@ class SmaHo {
     constructor(portName: string, baudRate: number, log: ioBroker.Logger, smlStoreFunc: CallableFunction) {
         const me = this;
 
-        this._Port = new SerialPort(portName, { baudRate: baudRate });
-        this._Port.on("data", (d) => {
-            me.readBytes(d);
-        });
-        // todo close bei fehlern.
         this._Log = log;
 
         this._Packetizer = new SmaHoPacketizer();
@@ -79,9 +82,58 @@ class SmaHo {
         this._PacketQueue = [];
         this._SmartMeter = new SmartMeterInterface(smlStoreFunc, this._Log);
 
+        if (portName.startsWith("tcp://")) {
+            let port = "";
+
+            const pPos = portName.lastIndexOf(":");
+            this._NetHost = portName.substring(6, pPos);
+            port = portName.substring(pPos + 1);
+
+            this._NetPort = parseInt(port);
+
+            if (this._NetPort > 1 && this._NetPort < 65535) {
+                this.netConnect();
+            } else {
+                this._Log.error("Could not parse host/port-string");
+            }
+        } else {
+            this._Port = new SerialPort(portName, { baudRate: baudRate });
+            this._Port.on("data", (d) => {
+                me.readBytes(d);
+            });
+        }
+
         this.startIdlePing();
         this.startSender();
         this._Log.info("initialized.");
+    }
+
+    private reConnect(): boolean {
+        try {
+            this._Sckt.end();
+            this._Sckt.destroy();
+        } catch (error) {}
+
+        return this.netConnect();
+    }
+
+    private netConnect(): boolean {
+        const me = this;
+
+        try {
+            this._Sckt = net.connect(this._NetPort, this._NetHost);
+            this._Sckt.on("data", (d) => {
+                me.readBytes(d);
+            });
+
+            this._Sckt.on("error", (err) => {
+                this._Log.error(err.stack);
+            });
+        } catch (er: any) {
+            this._Log.error(er);
+            return false;
+        }
+        return true;
     }
 
     private stopIdlePing(): void {
@@ -105,7 +157,7 @@ class SmaHo {
             const me = this;
             this._PacketSender = setInterval(() => {
                 me.sendPackets();
-            }, 50);
+            }, 25);
         }
     }
 
@@ -120,14 +172,40 @@ class SmaHo {
         let p: PacketBase;
 
         if (this._PacketQueue.length) {
-            if (!this._Port.isOpen) return;
+            if (this._Sckt != undefined) {
+                if (this._Sckt.readyState == "open") {
+                    p = this._PacketQueue.splice(0, 1)[0];
+                    //this._Log.info("recv CMD: " + p.getPacketType());
+                    try {
+                        p.sendNetworkPacket(this._Sckt);
+                    } catch (err: any) {
+                        this._Log.error("Err Sending Packet. requeue.");
+                        this._PacketQueue.unshift(p);
+                    }
+                }
 
-            p = this._PacketQueue.splice(0, 1)[0];
-            //this._Log.info("recv CMD: " + p.getPacketType());
-            p.sendPacket(this._Port);
+                if (this._Sckt.readyState == "closed") {
+                    this._Log.error("Cannot send packets, stopping sender and try reconnect...");
+                    this.stopSender();
+
+                    if (!this.reConnect()) {
+                        this._Log.error("reconnect failed");
+                        return;
+                    }
+                }
+            } else {
+                if (!this._Port.isOpen) {
+                    this._Log.error("Cannot send packets");
+                    return;
+                }
+
+                p = this._PacketQueue.splice(0, 1)[0];
+                //this._Log.info("recv CMD: " + p.getPacketType());
+
+                p.sendPacket(this._Port);
+            }
         } else {
-            clearInterval(this._PacketSender);
-            this._PacketSender = null;
+            this.stopSender();
         }
     }
 

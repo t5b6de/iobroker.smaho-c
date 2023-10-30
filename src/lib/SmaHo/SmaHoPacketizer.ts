@@ -1,3 +1,4 @@
+import { Socket } from "net";
 import SerialPort from "serialport";
 import PacketType from "./Packets/PacketType";
 
@@ -59,9 +60,21 @@ class SmaHoPacketizer {
             buf[i] = this._Buf[i - 2];
         }
 
-        console.log(buf);
-
         p.write(buf);
+    }
+
+    sendNetworkPacket(s: Socket): void {
+        const buf = Buffer.alloc(2 + this._PacketLen);
+        let i: number;
+
+        buf[0] = this.cSyncByte;
+        buf[1] = this._PacketLen;
+
+        for (i = 2; i < buf.length; i++) {
+            buf[i] = this._Buf[i - 2];
+        }
+
+        s.write(buf);
     }
 
     getBuffer(): Buffer {

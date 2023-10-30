@@ -1,3 +1,4 @@
+import { Socket } from "net";
 import SerialPort from "serialport";
 import SmaHoPacketizer from "../SmaHoPacketizer";
 import PacketType from "./PacketType";
@@ -39,6 +40,13 @@ class PacketBase {
         if (this._GenCb != null) {
             this._GenCb();
             this._Packetizer.sendPacket(p);
+        }
+    }
+
+    sendNetworkPacket(s: Socket): void {
+        if (this._GenCb != null) {
+            this._GenCb();
+            this._Packetizer.sendNetworkPacket(s);
         }
     }
 
