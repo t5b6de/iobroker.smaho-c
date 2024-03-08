@@ -27,21 +27,28 @@ class SmaHoAdapter {
         this._Adp = adapter;
 
         if (this._Adp.config.serialport.startsWith("tcp://")) {
-            this._Adp.log.info("Using Network Adapter " + this._Adp.config.serialport);
+            this._Adp.log.info("Using network adapter " + this._Adp.config.serialport);
         } else {
             this._Adp.log.info(
-                "Using Serialport " + this._Adp.config.serialport + " with " + this._Adp.config.baudrate + "bd",
+                "Using serialport " + this._Adp.config.serialport + " with " + this._Adp.config.baudrate + "bd",
             );
         }
 
         const me = this;
 
-        this._Adp.log.info("Creating Instance of SmaHo...");
-        this._Controller = new SmaHo(this._Adp.config.serialport, this._Adp.config.baudrate, this._Adp.log, function (
-            vals: Dictionary<ObisMeasurement>,
-        ) {
-            me.onSmlArrived(vals);
-        });
+        this._Adp.log.info("Creating instance of SmaHo...");
+        this._Controller = new SmaHo(
+            this._Adp.config.serialport,
+            this._Adp.config.baudrate,
+            this._Adp.log,
+            function (vals: Dictionary<ObisMeasurement>, meterIdx: number) {
+                me.onSmlArrived(vals, meterIdx);
+            },
+            () => {
+                adapter.log.warn("Reconnected, running reinit for safety.");
+                me.reInit();
+            },
+        );
         this._Conf = new SmaHoFbConfig(this._Controller, this);
         this._SmValues = {};
 
@@ -74,7 +81,7 @@ class SmaHoAdapter {
         });
 
         this._Controller.setInfoReceivedHandler((p: InfoResponsePacket) => {
-            this._Adp.log.info("information received.");
+            this._Adp.log.info("Information received.");
             me.updateControllerStatus(p);
         });
 
@@ -83,16 +90,15 @@ class SmaHoAdapter {
         });
 
         this._Controller.setResetHandler(() => {
-            me._Adp.log.warn("SmaHo Controller Board RESET OCCURED!");
+            me._Adp.log.warn("SmaHo controller board RESET OCCURED!");
             this.setSmartMode();
         });
 
         await this.initBaseObjects();
 
         this._Adp.log.info("SmaHo-C adapter initialized. Requesting device informations...");
-        this._Controller.requestInfo();
+        this.reInit();
 
-        this.setSmartMode();
         this._Adp.subscribeStates("out.*");
         this._Adp.subscribeStates("in.*");
         this._Adp.subscribeStates("mds.*");
@@ -100,8 +106,14 @@ class SmaHoAdapter {
         this._Adp.subscribeStates("trigger");
     }
 
+    private reInit(): void {
+        this._Controller.requestInfo();
+
+        this.setSmartMode();
+    }
+
     private setSmartMode(): void {
-        this._Adp.log.info((this._Adp.config.smartmode ? "en" : "dis") + "abling smart mode...");
+        this._Adp.log.info((this._Adp.config.smartmode ? "En" : "Dis") + "abling smart mode...");
         this._Controller.SetSmartMode(this._Adp.config.smartmode);
     }
 
@@ -231,14 +243,14 @@ class SmaHoAdapter {
                 let obj = await this._Adp.getObjectAsync(inId);
 
                 if (obj != null) {
-                    this._Adp.log.info("deleting: " + inId);
+                    this._Adp.log.info("Deleting: " + inId);
                     await this._Adp.delObjectAsync(inId);
                 }
 
                 obj = await this._Adp.getObjectAsync(outId);
 
                 if (obj != null) {
-                    this._Adp.log.info("deleting: " + outId);
+                    this._Adp.log.info("Deleting: " + outId);
                     await this._Adp.delObjectAsync(outId);
                 }
                 // TODO Delete Conf-Objects!
@@ -399,16 +411,18 @@ class SmaHoAdapter {
         }
     }
 
-    public async onSmlArrived(obisResult: Dictionary<ObisMeasurement>): Promise<void> {
+    public async onSmlArrived(obisResult: Dictionary<ObisMeasurement>, meterIdx: number): Promise<void> {
         if (obisResult == null || obisResult == undefined) {
-            this._Adp.log.warn("Could not set Values: Empty");
+            this._Adp.log.warn("Could not set values: Empty");
             return;
         }
 
-        await this._Adp.setObjectNotExistsAsync("meter", {
+        const meterRoot = "meter_" + meterIdx;
+
+        await this._Adp.setObjectNotExistsAsync(meterRoot, {
             type: "channel",
             common: {
-                name: "Smart Meter values",
+                name: "Smart meter values",
                 role: "info",
             },
             native: {},
@@ -434,13 +448,13 @@ class SmaHoAdapter {
                 // todo: meter durchnummerieren, problematisch bei mehreren metern.
                 const rawChannelId = obisResult[obisId].idToString();
                 let ioChannelId = rawChannelId.replace(/[\]\[*,;'"`<>\\?]/g, "__");
-                ioChannelId = "meter." + ioChannelId.replace(/\./g, "_");
+                ioChannelId = meterRoot + "." + ioChannelId.replace(/\./g, "_");
                 if (!this._SmValues[obisId]) {
                     const ioChannelName = SmartmeterObis.ObisNames.resolveObisName(
                         obisResult[obisId],
                         obisLang,
                     ).obisName;
-                    this._Adp.log.debug("Create Channel " + ioChannelId + " with name " + ioChannelName);
+                    this._Adp.log.debug("Create channel " + ioChannelId + " with name " + ioChannelName);
                     try {
                         await this._Adp.setObjectNotExistsAsync(ioChannelId, {
                             type: "channel",
@@ -450,11 +464,11 @@ class SmaHoAdapter {
                             native: {},
                         });
                     } catch (err) {
-                        this._Adp.log.error("Error creating Channel: " + err);
+                        this._Adp.log.error("Error creating channel: " + err);
                     }
 
                     if (obisResult[obisId].getRawValue() !== undefined) {
-                        this._Adp.log.debug("Create State " + ioChannelId + ".rawvalue");
+                        this._Adp.log.debug("Create state " + ioChannelId + ".rawvalue");
                         try {
                             await this._Adp.setObjectNotExistsAsync(ioChannelId + ".rawvalue", {
                                 type: "state",
@@ -470,11 +484,11 @@ class SmaHoAdapter {
                                 },
                             });
                         } catch (err) {
-                            this._Adp.log.error("Error creating State: " + err);
+                            this._Adp.log.error("Error creating state: " + err);
                         }
                     }
 
-                    this._Adp.log.debug("Create State " + ioChannelId + ".value");
+                    this._Adp.log.debug("Create state " + ioChannelId + ".value");
                     try {
                         await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value", {
                             type: "state",
@@ -491,12 +505,12 @@ class SmaHoAdapter {
                             },
                         });
                     } catch (err) {
-                        this._Adp.log.error("Error creating State: " + err);
+                        this._Adp.log.error("Error creating state: " + err);
                     }
 
                     if (obisResult[obisId].getValueLength() > 1) {
                         for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
-                            this._Adp.log.debug("Create State " + ioChannelId + ".value" + (i + 1));
+                            this._Adp.log.debug("Create state " + ioChannelId + ".value" + (i + 1));
                             try {
                                 await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value" + (i + 1), {
                                     type: "state",
@@ -513,7 +527,7 @@ class SmaHoAdapter {
                                     },
                                 });
                             } catch (err) {
-                                this._Adp.log.error("Error creating State: " + err);
+                                this._Adp.log.error("Error creating state: " + err);
                             }
                         }
                     }
@@ -533,7 +547,7 @@ class SmaHoAdapter {
                     }
 
                     this._Adp.log.debug(
-                        "Set State " + ioChannelId + ".value = " + obisResult[obisId].getValue(0).value,
+                        "Set state " + ioChannelId + ".value = " + obisResult[obisId].getValue(0).value,
                     );
                     await this._Adp.setStateAsync(ioChannelId + ".value", {
                         ack: true,
@@ -543,7 +557,7 @@ class SmaHoAdapter {
                     if (obisResult[obisId].getValueLength() > 1) {
                         for (i = 1; i < obisResult[obisId].getValueLength(); i++) {
                             this._Adp.log.debug(
-                                "Set State " +
+                                "Set state " +
                                     ioChannelId +
                                     ".value" +
                                     (i + 1) +
@@ -563,7 +577,7 @@ class SmaHoAdapter {
                 }
             }
         } catch (err) {
-            this._Adp.log.error("Could not set Values: " + err.toString());
+            this._Adp.log.error("Could not set values: " + err.toString());
         }
 
         this._Adp.log.debug("Received " + Object.keys(obisResult).length + " values, " + updateCount + " updated");

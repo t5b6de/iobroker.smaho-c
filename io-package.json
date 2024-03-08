@@ -1,7 +1,7 @@
 {
     "common": {
         "name": "smaho-c",
-        "version": "1.4.1",
+        "version": "1.4.4",
         "news": {
             "0.0.1": {
                 "en": "initial test release",
@@ -66,6 +66,21 @@
             "1.4.1": {
                 "en": "Bugfixes.",
                 "de": "Bugfixes."
+            },
+
+            "1.4.2": {
+                "en": "Small changes on smart meter packets protocol, firmware 1.18. Now possible to read multiple meters.",
+                "de": "Kleine Protokolländerungen am Smart Meter Packet, Firmware 1.18. Nun ist es möglich mehrere Stromzähler auszulesen."
+            },
+
+            "1.4.3": {
+                "en": "Re-Init on socket reconnect.",
+                "de": "Re-Initialisierung bei Socket-Reconnect."
+            },
+
+            "1.4.4": {
+                "en": "fixed typo",
+                "de": "Tippfehler behoben."
             }
         },
         "titleLang": {

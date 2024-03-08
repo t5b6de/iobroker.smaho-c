@@ -53,13 +53,13 @@ class SmartMeterInterface {
 
             if (this._DataLen > 0) {
                 const buf: Buffer = dp.getData();
-
-                buf.copy(this._Buffer, this._CurPos, 4, dp.getSize() + 4);
+                //this._Logger.debug(buf.toString("hex"));
+                buf.copy(this._Buffer, this._CurPos, 0, dp.getSize());
                 this._CurPos += dp.getSize();
                 this._CurChunk++;
 
                 if (this._CurPos >= this._DataLen) {
-                    this._StoreCb(this.readList());
+                    this._StoreCb(this.readList(), dp.getMeterIndex());
                     this.reset();
                 }
             }
@@ -69,7 +69,7 @@ class SmartMeterInterface {
     private readList(): Dictionary<SmartmeterObis.ObisMeasurement> {
         try {
             const buff = new SmlBuffer(this._Buffer);
-            this._Logger.debug(this._Buffer.toString("hex"));
+            //this._Logger.debug(this._Buffer.toString("hex"));
             const list = SmlList.parse(buff);
 
             const result: Dictionary<SmartmeterObis.ObisMeasurement> = {};
@@ -92,6 +92,7 @@ class SmartMeterInterface {
             return result;
         } catch (err) {
             this._Logger.error("Could not decode List: " + err.toString());
+            this._Logger.error(this._Buffer.toString("hex"));
         }
 
         return undefined;

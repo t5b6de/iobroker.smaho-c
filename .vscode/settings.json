@@ -1,11 +1,12 @@
 {
     "typescript.tsdk": "node_modules/typescript/lib",
+    "files.eol": "\n",
     "eslint.enable": true,
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "[typescript]": {
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true
+            "source.organizeImports": "explicit"
         }
     },
     "json.schemas": [

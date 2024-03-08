@@ -63,16 +63,25 @@ class SmaHo {
 
     _Log: ioBroker.Logger;
 
-    _SmartMeter: SmartMeterInterface;
+    _SmartMeters: Array<SmartMeterInterface>;
+    _SmartMeterStoreFb: CallableFunction;
+    _ConLostCb: CallableFunction;
 
     /**
      * Serialportname e.g. COM3 or /dev/ttyS0
      * @param {string} portName
      */
-    constructor(portName: string, baudRate: number, log: ioBroker.Logger, smlStoreFunc: CallableFunction) {
+    constructor(
+        portName: string,
+        baudRate: number,
+        log: ioBroker.Logger,
+        smlStoreFunc: CallableFunction,
+        cbConnLost: CallableFunction,
+    ) {
         const me = this;
 
         this._Log = log;
+        this._ConLostCb = cbConnLost;
 
         this._Packetizer = new SmaHoPacketizer();
         this._PingSchedule = null;
@@ -80,7 +89,8 @@ class SmaHo {
         this._Ping = new PingPacket();
         this._InputChanged = null;
         this._PacketQueue = [];
-        this._SmartMeter = new SmartMeterInterface(smlStoreFunc, this._Log);
+        this._SmartMeters = [];
+        this._SmartMeterStoreFb = smlStoreFunc;
 
         if (portName.startsWith("tcp://")) {
             let port = "";
@@ -114,7 +124,11 @@ class SmaHo {
             this._Sckt.destroy();
         } catch (error) {}
 
-        return this.netConnect();
+        if (this.netConnect()) {
+            this._ConLostCb();
+            return true;
+        }
+        return false;
     }
 
     private netConnect(): boolean {
@@ -189,7 +203,7 @@ class SmaHo {
                     this.stopSender();
 
                     if (!this.reConnect()) {
-                        this._Log.error("reconnect failed");
+                        this._Log.error("Reconnect failed");
                         return;
                     }
                 }
@@ -298,7 +312,13 @@ class SmaHo {
 
             case PacketType.SmlData:
                 p = new SmartMeterDataPacket(this._Packetizer, (a: SmartMeterDataPacket) => {
-                    this._SmartMeter.addPacket(a);
+                    if (this._SmartMeters[a.getMeterIndex()] == null) {
+                        this._SmartMeters[a.getMeterIndex()] = new SmartMeterInterface(
+                            this._SmartMeterStoreFb,
+                            this._Log,
+                        );
+                    }
+                    this._SmartMeters[a.getMeterIndex()].addPacket(a);
                 });
                 break;
 
