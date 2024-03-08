@@ -1,6 +1,6 @@
 {
   "name": "iobroker.smaho-c",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Steuerung E-Installation",
   "author": {
     "name": "t5b6de",
@@ -19,19 +19,17 @@
     "url": "https://github.com/t5b6de/ioBroker.smaho-c"
   },
   "dependencies": {
-    "@iobroker/adapter-core": "^2.5.1",
+    "@iobroker/adapter-core": "^3.0.4",
     "@types/serialport": "^8.0.2",
     "open-sml": "^1.0.4",
-    "serialport": "^9.2.0",
     "smartmeter-obis": "^3.0.2"
   },
   "devDependencies": {
-    "@iobroker/testing": "^2.4.4",
     "@types/chai": "^4.2.21",
     "@types/chai-as-promised": "^7.1.4",
     "@types/gulp": "^4.0.9",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^14.17.5",
+    "@types/node": "^20.11.25",
     "@types/proxyquire": "^1.3.28",
     "@types/sinon": "^10.0.2",
     "@types/sinon-chai": "^3.2.5",
@@ -52,7 +50,7 @@
     "sinon-chai": "^3.7.0",
     "source-map-support": "^0.5.19",
     "ts-node": "^10.1.0",
-    "typescript": "^4.3.5"
+    "typescript": "^5.4.2"
   },
   "main": "build/main.js",
   "scripts": {

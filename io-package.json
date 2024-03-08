@@ -1,7 +1,7 @@
 {
     "common": {
         "name": "smaho-c",
-        "version": "1.4.4",
+        "version": "1.4.6",
         "news": {
             "0.0.1": {
                 "en": "initial test release",
@@ -81,6 +81,16 @@
             "1.4.4": {
                 "en": "fixed typo",
                 "de": "Tippfehler behoben."
+            },
+
+            "1.4.5": {
+                "en": "Bumped deps",
+                "de": "Abhängigkeiten aktualisiert."
+            },
+
+            "1.4.6": {
+                "en": "Bumped deps, remove serial support",
+                "de": "Abhängigkeiten aktualisiert, Serialport Support entfernt"
             }
         },
         "titleLang": {

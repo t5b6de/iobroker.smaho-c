@@ -25,8 +25,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-//const SerialPort = require("serialport");
-const serialport_1 = __importDefault(require("serialport"));
 const ConfType_1 = __importDefault(require("./Packets/Config/ConfType"));
 const ConfigInputReadPacket_1 = __importDefault(require("./Packets/Config/ConfigInputReadPacket"));
 const ConfigInputResponsePacket_1 = __importDefault(require("./Packets/Config/ConfigInputResponsePacket"));
@@ -64,7 +62,6 @@ class SmaHo {
      * @param {string} portName
      */
     constructor(portName, baudRate, log, smlStoreFunc, cbConnLost) {
-        const me = this;
         this._Log = log;
         this._ConLostCb = cbConnLost;
         this._Packetizer = new SmaHoPacketizer_1.default();
@@ -89,10 +86,7 @@ class SmaHo {
             }
         }
         else {
-            this._Port = new serialport_1.default(portName, { baudRate: baudRate });
-            this._Port.on("data", (d) => {
-                me.readBytes(d);
-            });
+            this._Log.error("ERROR no tcp url!");
         }
         this.startIdlePing();
         this.startSender();
@@ -178,15 +172,6 @@ class SmaHo {
                         return;
                     }
                 }
-            }
-            else {
-                if (!this._Port.isOpen) {
-                    this._Log.error("Cannot send packets");
-                    return;
-                }
-                p = this._PacketQueue.splice(0, 1)[0];
-                //this._Log.info("recv CMD: " + p.getPacketType());
-                p.sendPacket(this._Port);
             }
         }
         else {

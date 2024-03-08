@@ -381,7 +381,7 @@ class SmaHoAdapter {
                             await this._Adp.setObjectNotExistsAsync(ioChannelId + ".rawvalue", {
                                 type: "state",
                                 common: {
-                                    name: rawChannelId,
+                                    name: rawChannelId, //ioChannelId + ".rawvalue",
                                     type: "string",
                                     read: true,
                                     role: "value",
@@ -401,7 +401,7 @@ class SmaHoAdapter {
                         await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value", {
                             type: "state",
                             common: {
-                                name: rawChannelId,
+                                name: rawChannelId, //ioChannelId + ".value",
                                 type: this.getStateTypeByType(typeof obisResult[obisId].getValue(0).value),
                                 read: true,
                                 unit: obisResult[obisId].getValue(0).unit,
@@ -423,7 +423,7 @@ class SmaHoAdapter {
                                 await this._Adp.setObjectNotExistsAsync(ioChannelId + ".value" + (i + 1), {
                                     type: "state",
                                     common: {
-                                        name: rawChannelId + " (" + (i + 1) + ")",
+                                        name: rawChannelId + " (" + (i + 1) + ")", //ioChannelId + ".value" + (i + 1),
                                         type: this.getStateTypeByType(typeof obisResult[obisId].getValue(i).value),
                                         read: true,
                                         unit: obisResult[obisId].getValue(i).unit,

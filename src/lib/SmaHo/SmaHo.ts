@@ -1,5 +1,3 @@
-//const SerialPort = require("serialport");
-import SerialPort from "serialport";
 import ConfType from "./Packets/Config/ConfType";
 import ConfigInputReadPacket from "./Packets/Config/ConfigInputReadPacket";
 import ConfigInputResponsePacket from "./Packets/Config/ConfigInputResponsePacket";
@@ -38,9 +36,6 @@ import SmartMeterInterface from "./SmartMeterInterface";
 import * as net from "net";
 
 class SmaHo {
-    _Port: SerialPort;
-
-    // Alternativ Netzwerk:
     _Sckt: net.Socket;
     _NetHost: string;
     _NetPort: number;
@@ -48,8 +43,8 @@ class SmaHo {
     _Packetizer: SmaHoPacketizer;
 
     _Ping: PingPacket;
-    _PingSchedule: NodeJS.Timer;
-    _PacketSender: NodeJS.Timer;
+    _PingSchedule: NodeJS.Timeout;
+    _PacketSender: NodeJS.Timeout;
 
     _InputChanged: CallableFunction;
     _OutputChanged: CallableFunction;
@@ -78,8 +73,6 @@ class SmaHo {
         smlStoreFunc: CallableFunction,
         cbConnLost: CallableFunction,
     ) {
-        const me = this;
-
         this._Log = log;
         this._ConLostCb = cbConnLost;
 
@@ -107,10 +100,7 @@ class SmaHo {
                 this._Log.error("Could not parse host/port-string");
             }
         } else {
-            this._Port = new SerialPort(portName, { baudRate: baudRate });
-            this._Port.on("data", (d) => {
-                me.readBytes(d);
-            });
+            this._Log.error("ERROR no tcp url!");
         }
 
         this.startIdlePing();
@@ -207,16 +197,6 @@ class SmaHo {
                         return;
                     }
                 }
-            } else {
-                if (!this._Port.isOpen) {
-                    this._Log.error("Cannot send packets");
-                    return;
-                }
-
-                p = this._PacketQueue.splice(0, 1)[0];
-                //this._Log.info("recv CMD: " + p.getPacketType());
-
-                p.sendPacket(this._Port);
             }
         } else {
             this.stopSender();
